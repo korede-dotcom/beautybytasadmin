@@ -32,6 +32,7 @@ import { RectangleEllipsis } from 'lucide-react';
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import ModeToggle from "./ModeToggle"
+import { NotebookPen } from 'lucide-react';
 
 
 function Header() {
@@ -77,10 +78,10 @@ function Header() {
             </Link>
             <Link
               href="/category"
-              className={linkClasses('/orders')}
+              className={linkClasses('/category')}
             >
               <RectangleEllipsis className="h-5 w-5" />
-              Caategory
+              Category
             </Link>
             <Link
               href="/products"
@@ -104,11 +105,11 @@ function Header() {
               Customers
             </Link>
             <Link
-              href="/analytics"
-              className={linkClasses('/analytics')}
+              href="/blogs"
+              className={linkClasses('/blogs')}
             >
-              <LineChart className="h-5 w-5" />
-              Analytics
+              <NotebookPen className="h-5 w-5" />
+              Blogs
             </Link>
             <Link
               href="/settings"

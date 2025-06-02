@@ -22,7 +22,7 @@ export default function SheetSide() {
   return (
     <Sheet>
     <SheetTrigger asChild>
-      <Button variant="outline" className="none">Open</Button>
+      <Button variant="outline" className="">Open</Button>
     </SheetTrigger>
     <SheetContent>
       <SheetHeader>

@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -47,16 +46,18 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { Pagination } from "@/components/ui/pagination";
 import Layout from "../Layouts/Layout";
 import { toast } from "@/components/ui/use-toast";
-import { Pagination } from "@/components/ui/pagination";
 
-interface Category {
+interface Customer {
   [x: string]: any;
-  categoryId: string;
-  categoryName: string;
-  productCount: number;
-  createdAt: string;
+  username: string,
+	useremail: string,
+  customerid: string,
+  phonenumber: string,
+  address: string,
+  createdat: string
 }
 
 const Page: React.FC = () => {
@@ -64,17 +65,17 @@ const Page: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [customer, setCustomer] = useState<Customer[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
 
-
-  const getAllCategories = async () => {
+  const getAllCustomers = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category?page=${currentPage}&limit=${pageSize}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers?page=${currentPage}&limit=${pageSize}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -82,19 +83,23 @@ const Page: React.FC = () => {
         },
       });
       const data = await response.json();
-      setCategories(data.categories);
-      setTotalPages(data.pagination.totalPages);
-      setTotalItems(data.pagination.totalItems);
+
+      if (data.status && data.data) {
+        setCustomer(data.data.customers);
+        setTotalPages(data.data.pagination.totalPages);
+        setTotalItems(parseInt(data.data.pagination.totalItems));
+      } else {
+        console.error("Error in response format:", data);
+      }
     } catch (error) {
-      console.error("Error fetching categories:", error);
-      setError('Failed to fetch categories.');
+      console.error("Error fetching customers:", error);
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => {
 
-    getAllCategories();
+  useEffect(() => {
+    getAllCustomers();
   }, [currentPage, pageSize]);
 
   const handlePageChange = (newPage: number) => {
@@ -121,12 +126,10 @@ const Page: React.FC = () => {
       return;
     }
 
-
-
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +145,7 @@ const Page: React.FC = () => {
           description: details.message,
         });
         setFormData({ name: '' })
-        await getAllCategories();
+        await getAllCustomers();
         setIsSheetOpen(false);
       } else {
         toast({
@@ -168,16 +171,13 @@ const Page: React.FC = () => {
   return (
     <Layout>
       <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-        <h1 className='font-bold text-4xl text-gray-950'>Categories</h1>
+        <h1 className='font-bold text-4xl text-gray-950'>Customers</h1>
         <Tabs defaultValue="all">
           <div className="flex items-center">
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="draft">Draft</TabsTrigger>
-              <TabsTrigger value="archived" className="hidden sm:flex">
-                Archived
-              </TabsTrigger>
+              <TabsTrigger value="inactive">Inactive</TabsTrigger>
             </TabsList>
             <div className="ml-auto flex items-center gap-2">
               <DropdownMenu>
@@ -195,10 +195,7 @@ const Page: React.FC = () => {
                   <DropdownMenuCheckboxItem checked>
                     Active
                   </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>Draft</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem>
-                    Archived
-                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem>Inactive</DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -253,26 +250,26 @@ const Page: React.FC = () => {
           <TabsContent value="all">
             <Card x-chunk="dashboard-06-chunk-0">
               <CardHeader>
-                <CardTitle>Categories</CardTitle>
+                <CardTitle>Customers</CardTitle>
                 <CardDescription>
-                  Manage your categories and view their sales performance.
+                  Manage your customers and view their information.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {/* <TableHead className="hidden w-[100px] sm:table-cell">
-                        <span className="sr-only">Image</span>
-                      </TableHead> */}
                       <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead className="hidden md:table-cell">
-                        product count
+                        Email
                       </TableHead>
-                      {/* <TableHead className="hidden md:table-cell">
-                        Total Sales
-                      </TableHead> */}
+                      <TableHead className="hidden md:table-cell">
+                        Address
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Orders
+                      </TableHead>
                       <TableHead className="hidden md:table-cell">
                         Created At
                       </TableHead>
@@ -282,54 +279,61 @@ const Page: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {categories?.map((cat) => (
-                      <TableRow key={cat?.categoryId}>
-                        {/* <TableCell className="hidden sm:table-cell">
-                          <Image
-                            alt="Category image"
-                            className="aspect-square rounded-md object-cover"
-                            height={64}
-                            src="/placeholder.svg"
-                            width={64}
-                          />
-                        </TableCell> */}
-                        <TableCell className="font-medium">
-                          {cat?.categoryname}
-                        </TableCell>
-                        <TableCell>
-                        <Badge className="text-primary-foreground" variant={cat?.status ? "secondary" : "destructive"}>
-                          {cat?.status ? "Active" : "Inactive"}
-                        </Badge>
-
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                        {cat?.productcount}
-                        </TableCell>
-                        {/* <TableCell className="hidden md:table-cell">
-                          {cat.productcount}
-                        </TableCell> */}
-                        <TableCell className="hidden md:table-cell">
-                          {cat?.createdat}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>
-                                <Link href={`/categories/${cat?.categoryId}`}>Edit Category</Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center">
+                          Loading...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : !customer || customer.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center">
+                          No customers found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      customer.map((cat) => (
+                        <TableRow key={cat?.customerId}>
+                          <TableCell className="font-medium">
+                            {cat?.userName}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="text-primary-foreground" variant="secondary">
+                              {cat?.phoneNumber}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {cat?.userEmail}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {cat?.address}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {cat?.orderCount}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {new Date(cat?.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem>
+                                  <Link href={`/customers/${cat?.customerId}`}>Edit Customer</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

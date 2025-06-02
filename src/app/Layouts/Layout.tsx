@@ -92,11 +92,11 @@ interface DashboardProps {
   const Dashboard: React.FC<DashboardProps> = ({ children }) => {
     const [first, setfirst] = React.useState<Boolean>(false)
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-hidden">
      <Navbar/>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
         <Header/>
-         <main className="p-5">
+         <main className="sm:p-5 sm:h-[97vh] md:h-[95vh] lg:h-[93vh] overflow-y-scroll">
          {/* <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3 *:border *:border-pink-800 "> */}
             {children}
        </main>

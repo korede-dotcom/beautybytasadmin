@@ -70,64 +70,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import Layout from "../../Layouts/Layout"
-import { useEffect,useState } from "react"
-import SelectCategories from "@/app/Layouts/SelectCategories"
-
-
-interface Product {
-  [x: string]: any,
-  status: boolean,
-  productid: string,
-  productname:string,
-  categoryId: string,
-  createdAt: string,
-  categoryname: string,
-  images: [string],
-  price:number,
-  totalStock:number,
-  description:string
-}
-
 
 
 function Edit ({ params }: { params: { id: string } }) {
   console.log(params.id)
-
-  
-
-  const [loading,setloading] = useState(false)
-  const [pdetails,setpdetails] = useState<Product>()
-  const [imgArr,setImgArr] = useState([])
-  console.log("🚀 ~ Edit ~ imgArr:", imgArr)
-
-  useEffect(() => {
-    setloading(true)
-     const token = localStorage.getItem("token");
-    const options = {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-    };
-    const fetchDetails = async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/details/${params.id}`,options)
-      const data = await response.json();
-      console.log("🚀 ~ fetchDetails ~ data:", data)
-      if(data.status){
-        setloading(false)
-        setpdetails({...data.results})
-        setImgArr(data.results.images.shift())
-      }
-    }
-    fetchDetails()
-   
-
-  },[])
-
-  const handleCategoryChange = () => {
-
-  }
-
   return (
     <Layout>
          {/* <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8"> */}
@@ -141,7 +87,7 @@ function Edit ({ params }: { params: { id: string } }) {
                 </Link>
               </Button>
               <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                {pdetails?.productname}
+                Pro Controller
               </h1>
               <Badge variant="outline" className="ml-auto sm:ml-0">
                 In stock
@@ -157,9 +103,9 @@ function Edit ({ params }: { params: { id: string } }) {
               <div className="grid auto-rows-max items-start gap-4 lg:col-span-2 lg:gap-8">
                 <Card x-chunk="dashboard-07-chunk-0">
                   <CardHeader>
-                    <CardTitle>{pdetails?.productname} - {pdetails?.categoryname} Details</CardTitle>
+                    <CardTitle>Product Details</CardTitle>
                     <CardDescription>
-                    {pdetails?.productname} - {pdetails?.categoryname}
+                      Lipsum dolor sit amet, consectetur adipiscing elit
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -170,39 +116,14 @@ function Edit ({ params }: { params: { id: string } }) {
                           id="name"
                           type="text"
                           className="w-full"
-                          defaultValue={pdetails?.productname}
-                          
+                          defaultValue="Gamer Gear Pro Controller"
                         />
                       </div>
                       <div className="grid gap-3">
                         <Label htmlFor="description">Description</Label>
                         <Textarea
                           id="description"
-                          defaultValue={pdetails?.description}
-                          className="min-h-32"
-                        />
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="description">Howtouse</Label>
-                        <Textarea
-                          id="description"
-                          defaultValue={pdetails?.howtouse}
-                          className="min-h-32"
-                        />
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="description">Benefits</Label>
-                        <Textarea
-                          id="description"
-                          defaultValue={pdetails?.benefits}
-                          className="min-h-32"
-                        />
-                      </div>
-                      <div className="grid gap-3">
-                        <Label htmlFor="description">Ingredients</Label>
-                        <Textarea
-                          id="description"
-                          defaultValue={pdetails?.ingredients}
+                          defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam auctor, nisl nec ultricies ultricies, nunc nisl ultricies nunc, nec ultricies nunc nisl nec nunc."
                           className="min-h-32"
                         />
                       </div>
@@ -220,17 +141,17 @@ function Edit ({ params }: { params: { id: string } }) {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {/* <TableHead className="w-[100px]">SKU</TableHead> */}
+                          <TableHead className="w-[100px]">SKU</TableHead>
                           <TableHead>Stock</TableHead>
                           <TableHead>Price</TableHead>
-                          {/* <TableHead className="w-[100px]">Size</TableHead> */}
+                          <TableHead className="w-[100px]">Size</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         <TableRow>
-                          {/* <TableCell className="font-semibold">
+                          <TableCell className="font-semibold">
                             GGPC-001
-                          </TableCell> */}
+                          </TableCell>
                           <TableCell>
                             <Label htmlFor="stock-1" className="sr-only">
                               Stock
@@ -238,7 +159,7 @@ function Edit ({ params }: { params: { id: string } }) {
                             <Input
                               id="stock-1"
                               type="number"
-                              defaultValue={pdetails?.totalStock}
+                              defaultValue="100"
                             />
                           </TableCell>
                           <TableCell>
@@ -248,10 +169,10 @@ function Edit ({ params }: { params: { id: string } }) {
                             <Input
                               id="price-1"
                               type="number"
-                              defaultValue={pdetails?.price}
+                              defaultValue="99.99"
                             />
                           </TableCell>
-                          {/* <TableCell>
+                          <TableCell>
                             <ToggleGroup
                               type="single"
                               defaultValue="s"
@@ -261,9 +182,9 @@ function Edit ({ params }: { params: { id: string } }) {
                               <ToggleGroupItem value="m">M</ToggleGroupItem>
                               <ToggleGroupItem value="l">L</ToggleGroupItem>
                             </ToggleGroup>
-                          </TableCell> */}
+                          </TableCell>
                         </TableRow>
-                        {/* <TableRow>
+                        <TableRow>
                           <TableCell className="font-semibold">
                             GGPC-002
                           </TableCell>
@@ -334,16 +255,16 @@ function Edit ({ params }: { params: { id: string } }) {
                               <ToggleGroupItem value="l">L</ToggleGroupItem>
                             </ToggleGroup>
                           </TableCell>
-                        </TableRow> */}
+                        </TableRow>
                       </TableBody>
                     </Table>
                   </CardContent>
-                  {/* <CardFooter className="justify-center border-t p-4">
+                  <CardFooter className="justify-center border-t p-4">
                     <Button size="sm" variant="ghost" className="gap-1">
                       <PlusCircle className="h-3.5 w-3.5" />
                       Add Variant
                     </Button>
-                  </CardFooter> */}
+                  </CardFooter>
                 </Card>
                 <Card x-chunk="dashboard-07-chunk-2">
                   <CardHeader>
@@ -353,8 +274,7 @@ function Edit ({ params }: { params: { id: string } }) {
                     <div className="grid gap-6 sm:grid-cols-3">
                       <div className="grid gap-3">
                         <Label htmlFor="category">Category</Label>
-                        <SelectCategories onChange={handleCategoryChange} current={pdetails?.categoryname}/>
-                        {/* <Select>
+                        <Select>
                           <SelectTrigger
                             id="category"
                             aria-label="Select category"
@@ -370,9 +290,9 @@ function Edit ({ params }: { params: { id: string } }) {
                               Accessories
                             </SelectItem>
                           </SelectContent>
-                        </Select> */}
+                        </Select>
                       </div>
-                      {/* <div className="grid gap-3">
+                      <div className="grid gap-3">
                         <Label htmlFor="subcategory">
                           Subcategory (optional)
                         </Label>
@@ -391,7 +311,7 @@ function Edit ({ params }: { params: { id: string } }) {
                             </SelectItem>
                           </SelectContent>
                         </Select>
-                      </div> */}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -430,41 +350,37 @@ function Edit ({ params }: { params: { id: string } }) {
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-2">
-                      {/* <Image
+                      <Image
                         alt="Product image"
                         className="aspect-square w-full rounded-md object-cover"
                         height="300"
-                        src={pdetails?.images[0]}
+                        src="/placeholder.svg"
                         width="300"
-                      /> */}
-
-                     <>
-                      {
-                      pdetails && pdetails?.images.map((img) => {
-                        return (
+                      />
                       <div className="grid grid-cols-3 gap-2">
                         <button>
                           <Image
                             alt="Product image"
                             className="aspect-square w-full rounded-md object-cover"
                             height="84"
-                            src={img}
+                            src="/placeholder.svg"
                             width="84"
                           />
                         </button>
-                       
-                      </div>
-
-                        )
-
-                        })
-                        
-                      }
-                      </> 
+                        <button>
+                          <Image
+                            alt="Product image"
+                            className="aspect-square w-full rounded-md object-cover"
+                            height="84"
+                            src="/placeholder.svg"
+                            width="84"
+                          />
+                        </button>
                         <button className="flex aspect-square w-full items-center justify-center rounded-md border border-dashed">
                           <Upload className="h-4 w-4 text-muted-foreground" />
                           <span className="sr-only">Upload</span>
                         </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
