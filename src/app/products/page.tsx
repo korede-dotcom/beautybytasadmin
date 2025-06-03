@@ -118,6 +118,8 @@ function page() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const getAllCategories = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -262,7 +264,107 @@ function page() {
     }
   };
 
-  
+  const updateProduct = async (e: any) => {
+    e.preventDefault();
+    setloading(true);
+    const token = localStorage.getItem("token");
+    const options = {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        ...postProduct,
+        images: imgUrls,
+        productId: editingProductId
+      })
+    };
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/update/${editingProductId}`, options);
+      const data = await response.json();
+      
+      if (data.status) {
+        toast({
+          title: "Product updated",
+          description: data.message,
+        });
+        await getAllProduct();
+        setIsSheetOpen(false);
+        setIsEditing(false);
+        setEditingProductId(null);
+        setPostProduct({
+          name: "",
+          description: "",
+          price: 0,
+          images: [""],
+          howtouse: "",
+          ingredients: "",
+          benefits: "",
+          totalStock: 0
+        });
+        setImageUrls([]);
+      } else {
+        toast({
+          title: "Failed to update product",
+          description: data.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred while updating the product",
+        variant: "destructive"
+      });
+    } finally {
+      setloading(false);
+    }
+  };
+
+  const handleEdit = (product: Product) => {
+    setIsEditing(true);
+    setEditingProductId(product.productid);
+    setPostProduct({
+      name: product.productname,
+      description: product.description,
+      price: product.price,
+      images: product.images,
+      howtouse: product.howtouse,
+      ingredients: product.ingredients,
+      benefits: product.benefits,
+      totalStock: product.totalStock
+    });
+    setImageUrls(product.images);
+    setIsSheetOpen(true);
+  };
+
+  const handleSubmit = (e: any) => {
+    if (isEditing) {
+      updateProduct(e);
+    } else {
+      createProduct(e);
+    }
+  };
+
+  const handleSheetClose = () => {
+    setIsSheetOpen(false);
+    setIsEditing(false);
+    setEditingProductId(null);
+    setPostProduct({
+      name: "",
+      description: "",
+      price: 0,
+      images: [""],
+      howtouse: "",
+      ingredients: "",
+      benefits: "",
+      totalStock: 0
+    });
+    setImageUrls([]);
+  };
+
   return (
     <Layout>
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
@@ -292,20 +394,20 @@ function page() {
                     Add Category
                   </span>
                 </Button> */}
-                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
                 <SheetTrigger asChild >
                 <Button size="sm" className="h-8 gap-1"  onClick={() => setIsSheetOpen(true)}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Product
+                    {isEditing ? "Edit Product" : "Add Product"}
                   </span>
                 </Button>
                 </SheetTrigger>
                 <SheetContent>
                   <SheetHeader>
-                    <SheetTitle>create product</SheetTitle>
+                    <SheetTitle>{isEditing ? "Edit Product" : "Create Product"}</SheetTitle>
                     <SheetDescription>
-                      Make changes to your product here. Click save when you're done.
+                      {isEditing ? "Update your product details here." : "Add a new product to your store."}
                     </SheetDescription>
                   </SheetHeader>
                   <div className="grid gap-4 py-4 ">
@@ -444,12 +546,12 @@ function page() {
                   </div>
                   <SheetFooter>
                     <SheetClose asChild>
-                      <Button className="w-full" onClick={createProduct} type="submit">
+                      <Button className="w-full" onClick={handleSubmit} type="submit">
                       {loading ? (
                 <svg className="bg-white animate-spin h-5 w-5 mr-3 ..." viewBox="0 0 24 24">
               
               </svg>
-              ) : "Submint"}
+              ) : isEditing ? "Update" : "Submit"}
                       </Button>
                     </SheetClose>
                   </SheetFooter>
@@ -570,8 +672,8 @@ function page() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem>
-                                    <Link href={`/products/${product.productid}`}>Edit Product</Link>
+                                    <DropdownMenuItem onClick={() => handleEdit(product)}>
+                                      Edit Product
                                     </DropdownMenuItem>
                                     <DropdownMenuItem>Delete</DropdownMenuItem>
                                   </DropdownMenuContent>

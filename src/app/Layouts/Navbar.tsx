@@ -80,7 +80,7 @@ function Navbar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="/order"
+                href="/orders"
                 className={linkClasses('/order')}
               >
                 <ShoppingCart className="h-5 w-5" />
