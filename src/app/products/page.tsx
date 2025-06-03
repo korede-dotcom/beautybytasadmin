@@ -1,9 +1,8 @@
+
 "use client"
 import Image from "next/image"
-import Link from "next/link"
 import {
   File,
-  ListFilter,
   MoreHorizontal,
   PlusCircle,
 } from "lucide-react"
@@ -19,11 +18,9 @@ import {
 } from "@/components/ui/card"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -45,13 +42,10 @@ import {
 import Layout from "../Layouts/Layout"
 import SelectCategories from "../Layouts/SelectCategories"
 import { Textarea } from "@/components/ui/textarea"
-import UploadImage from "../Layouts/UploadImage"
-import { useState,useEffect, ChangeEvent } from "react"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectLabel, SelectItem } from "@radix-ui/react-select"
-import { Avatar, Message, Upload } from '@arco-design/web-react';
+import { useState,useEffect } from "react"
+import { Message, Upload } from '@arco-design/web-react';
 import { toast } from "@/components/ui/use-toast"
 import { Pagination } from "@/components/ui/pagination";
-const AvatarGroup = Avatar.Group;
 
 interface Category {
   [x: string]: any;
@@ -64,23 +58,21 @@ interface Category {
 interface Product {
     [x: string]: any,
     status: boolean,
-    productid: string,
-    productname:string,
+    productId: string,
+    productName: string,
     categoryId: string,
     createdAt: string,
-    categoryname: string,
+    categoryName: string,
     images: [string],
-    price:number,
-    totalStock:number,
-    description:string,
-    howtouse:string,
+    price: number,
+    totalStock: number,
+    description: string,
+    howtouse: string,
     ingredients: string,
     benefits: string,
 }
 
-interface Imgurl  {
-  [x: string]: any,
-}
+// Remove this interface since we'll use string[] for image URLs
 
 // interface postProduct {
 // 	name:string,
@@ -99,18 +91,19 @@ function page() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [prodcuts, setProducts] = useState<Product[]>([]);
   const [isUploading, setUploading] = useState(false);
-  const [imgUrls, setImageUrls] = useState<Imgurl[]>([]);
+  const [imgUrls, setImageUrls] = useState<string[]>([]);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [postProduct, setPostProduct] = useState(
     {
-      name:"",
+      productName:"",
       description:"",
       price:0,
       images:[""],
       howtouse:"",
       ingredients: "",
       benefits: "",
-      totalStock:0
+      totalStock:0,
+      categoryId: ""
     }
   );
   const [loading, setloading] = useState(false);
@@ -120,6 +113,7 @@ function page() {
   const [totalItems, setTotalItems] = useState<number>(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [originalProduct, setOriginalProduct] = useState<any>(null);
   const getAllCategories = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -152,21 +146,55 @@ function page() {
       });
       const data = await response.json();
       console.log("🚀 ~ getAllProduct ~ data:", data)
-    
-      setProducts(data.data);
-      setTotalPages(data.pagination.totalPages);
-      setTotalItems(data.pagination.totalItems);
+      console.log("🚀 ~ getAllProduct ~ products array:", data?.data);
+
+      if (data?.data && data.data.length > 0) {
+        console.log("🚀 ~ getAllProduct ~ first product:", data.data[0]);
+        console.log("🚀 ~ getAllProduct ~ first product name:", data.data[0].productName);
+      }
+
+      // Add null checks to prevent undefined errors
+      setProducts(data?.data || []);
+      setTotalPages(data?.pagination?.totalPages || 1);
+      setTotalItems(data?.pagination?.totalItems || 0);
     } catch (error) {
-      
-   
+      console.error("Error fetching products:", error);
+      // Set empty array on error to prevent undefined issues
+      setProducts([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       // setLoading(false);
     }
   };
   useEffect(() => {
+    console.log("🚀 ~ useEffect ~ Loading products...");
     getAllProduct();
     getAllCategories();
   }, [currentPage, pageSize]);
+
+  // Debug products state changes
+  useEffect(() => {
+    console.log("🚀 ~ Products state changed:", prodcuts);
+    console.log("🚀 ~ Products count:", prodcuts?.length);
+    if (prodcuts && prodcuts.length > 0) {
+      console.log("🚀 ~ First product in state:", prodcuts[0]);
+    }
+  }, [prodcuts]);
+
+  // Ensure form is properly initialized
+  useEffect(() => {
+    if (!postProduct.productName) {
+      setPostProduct(prev => ({
+        ...prev,
+        productName: "",
+        description: "",
+        howtouse: "",
+        ingredients: "",
+        benefits: ""
+      }));
+    }
+  }, []);
 
 
   const handleImageChange = async (e: any) => {
@@ -195,6 +223,7 @@ function page() {
 
         const data = await response.json();
 
+        // Fix: Store image URLs as strings, not objects
         setImageUrls((prev) => {
           const updatedUrls = [...prev, data.results.url];
           console.log("🚀 ~ handleImageChange ~ updatedUrls:", updatedUrls);
@@ -204,8 +233,12 @@ function page() {
         console.log("🚀 ~ handleImageChange ~ data:", data);
       } catch (error) {
         console.error("Error during file upload:", error);
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload image. Please try again.",
+          variant: "destructive"
+        });
       } finally {
-        // setLoading(false);
         setUploading(false); // Reset the flag after upload completes
       }
     } else {
@@ -215,47 +248,103 @@ function page() {
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+
+    // Convert numeric fields to numbers
+    let processedValue: string | number = value;
+    if (name === 'price' || name === 'totalStock') {
+      processedValue = value === '' ? 0 : Number(value);
+    }
+
     setPostProduct(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
-    console.log("🚀 ~ handleValueChange ~ setPostProduct:", postProduct)
+    console.log("🚀 ~ handleValueChange ~ setPostProduct:", {
+      ...postProduct,
+      [name]: processedValue
+    });
+  };
 
-    
+  const validateForm = () => {
+    const errors = [];
+
+    if (!postProduct.productName || !postProduct.productName.trim()) {
+      errors.push("Product name is required");
+    }
+    if (!postProduct.categoryId) {
+      errors.push("Please select a category");
+    }
+    if (!postProduct.price || postProduct.price <= 0) {
+      errors.push("Please enter a valid price");
+    }
+    if (!postProduct.totalStock || postProduct.totalStock <= 0) {
+      errors.push("Please enter a valid stock quantity");
+    }
+    if (!postProduct.description || !postProduct.description.trim()) {
+      errors.push("Product description is required");
+    }
+    if (!imgUrls || imgUrls.length === 0) {
+      errors.push("Please upload at least one product image");
+    }
+
+    return errors;
   };
 
   const createProduct = async (e: any) => {
     e.preventDefault()
+
+    // Validate form before submission
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: validationErrors.join(", "),
+        variant: "destructive"
+      });
+      return;
+    }
+
     setloading(true)
     const token = localStorage.getItem("token");
+
     const options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({...postProduct,images:imgUrls})
+      body: JSON.stringify({...postProduct, images: imgUrls})
     };
-    
-   const create = await  fetch(`${process.env.NEXT_PUBLIC_API_URL}/product`, options)
-    const data = await create.json()
-    if(data.status){
+
+    try {
+      const create = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product`, options);
+      const data = await create.json();
+
+      if(data.status){
+        toast({
+          title: "Product created",
+          description: data.message,
+        });
+        await getAllProduct();
+        setIsSheetOpen(false);
+        // Reset form after successful creation
+        resetForm();
+      } else {
+        toast({
+          title: "Failed to create product",
+          description: data.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
       toast({
-        title: "product created",
-        description: data.message,
+        title: "Error",
+        description: "An error occurred while creating the product",
+        variant: "destructive"
       });
-     await getAllProduct();
-     setIsSheetOpen(false);
-      setloading(false)
-      return;
+    } finally {
+      setloading(false);
     }
-    toast({
-      title: "fail to create product",
-      description: data.message,
-      variant:"destructive"
-    });
-    setloading(false)
-    
   }
   
   const handlePageChange = (newPage: number) => {
@@ -264,79 +353,223 @@ function page() {
     }
   };
 
+  const resetForm = () => {
+    setPostProduct({
+      productName: "",
+      description: "",
+      price: 0,
+      images: [""],
+      howtouse: "",
+      ingredients: "",
+      benefits: "",
+      totalStock: 0,
+      categoryId: ""
+    });
+    setImageUrls([]);
+    setIsEditing(false);
+    setEditingProductId(null);
+    setOriginalProduct(null);
+  };
+
   const updateProduct = async (e: any) => {
-    e.preventDefault();
-    setloading(true);
-    const token = localStorage.getItem("token");
-    const options = {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        ...postProduct,
-        images: imgUrls,
-        productId: editingProductId
-      })
-    };
-    
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/update/${editingProductId}`, options);
+      e.preventDefault();
+      console.log("🚀 ~ updateProduct ~ Starting update process");
+
+      // Get only the changed fields
+      const changedFields = getChangedFields();
+      console.log("🚀 ~ updateProduct ~ changedFields:", changedFields);
+      console.log("🚀 ~ updateProduct ~ editingProductId:", editingProductId);
+      console.log("🚀 ~ updateProduct ~ originalProduct:", originalProduct);
+      console.log("🚀 ~ updateProduct ~ postProduct:", postProduct);
+
+      // Check if there are any changes
+      if (Object.keys(changedFields).length === 0) {
+        toast({
+          title: "No changes detected",
+          description: "Please make some changes before updating the product.",
+          variant: "default"
+        });
+        return;
+      }
+
+      // Validate form before submission
+      const validationErrors = validateForm();
+      if (validationErrors.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: validationErrors.join(", "),
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if editingProductId exists
+      if (!editingProductId) {
+        console.error("🚀 ~ updateProduct ~ editingProductId is missing");
+        toast({
+          title: "Error",
+          description: "Product ID is missing. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setloading(true);
+      const token = localStorage.getItem("token");
+      console.log("🚀 ~ updateProduct ~ token exists:", !!token);
+
+      // Only send changed fields + productId
+      const updatePayload = {
+        ...changedFields,
+        productId: editingProductId
+      };
+
+      console.log("🚀 ~ updateProduct ~ Final payload:", updatePayload);
+
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/product/update/${editingProductId}`;
+      console.log("🚀 ~ updateProduct ~ API URL:", apiUrl);
+      console.log("🚀 ~ updateProduct ~ Environment API URL:", process.env.NEXT_PUBLIC_API_URL);
+
+      const options = {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatePayload)
+      };
+
+      console.log("🚀 ~ updateProduct ~ Request options:", options);
+      console.log("🚀 ~ updateProduct ~ About to make fetch request...");
+
+      const response = await fetch(apiUrl, options);
+      console.log("🚀 ~ updateProduct ~ Response received:", response);
+      console.log("🚀 ~ updateProduct ~ Response status:", response.status);
+      console.log("🚀 ~ updateProduct ~ Response ok:", response.ok);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      
+      console.log("🚀 ~ updateProduct ~ Response data:", data);
+
       if (data.status) {
         toast({
           title: "Product updated",
-          description: data.message,
+          description: data.message || "Product updated successfully",
         });
         await getAllProduct();
         setIsSheetOpen(false);
-        setIsEditing(false);
-        setEditingProductId(null);
-        setPostProduct({
-          name: "",
-          description: "",
-          price: 0,
-          images: [""],
-          howtouse: "",
-          ingredients: "",
-          benefits: "",
-          totalStock: 0
-        });
-        setImageUrls([]);
+        resetForm();
       } else {
         toast({
           title: "Failed to update product",
-          description: data.message,
+          description: data.message || "Unknown error occurred",
           variant: "destructive"
         });
       }
     } catch (error) {
+      console.error("🚀 ~ updateProduct ~ Error caught:", error);
+      console.error("🚀 ~ updateProduct ~ Error stack:", error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Error",
-        description: "An error occurred while updating the product",
+        description: `An error occurred while updating the product: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
+      console.log("🚀 ~ updateProduct ~ Finally block - setting loading to false");
       setloading(false);
     }
   };
 
+  // Function to get only changed fields
+  const getChangedFields = () => {
+    console.log("🚀 ~ getChangedFields ~ originalProduct:", originalProduct);
+    console.log("🚀 ~ getChangedFields ~ postProduct:", postProduct);
+
+    if (!originalProduct) {
+      console.log("🚀 ~ getChangedFields ~ No original product, returning all fields");
+      return postProduct;
+    }
+
+    const changes: any = {};
+
+    // Compare each field and only include changed ones
+    if (postProduct.productName !== originalProduct.productName) {
+      console.log("🚀 ~ getChangedFields ~ Name changed:", originalProduct.productName, "->", postProduct.productName);
+      changes.productName = postProduct.productName;
+    }
+    if (postProduct.description !== originalProduct.description) {
+      console.log("🚀 ~ getChangedFields ~ Description changed");
+      changes.description = postProduct.description;
+    }
+    if (postProduct.price !== originalProduct.price) {
+      console.log("🚀 ~ getChangedFields ~ Price changed:", originalProduct.price, "->", postProduct.price);
+      changes.price = postProduct.price;
+    }
+    if (postProduct.howtouse !== originalProduct.howtouse) {
+      console.log("🚀 ~ getChangedFields ~ How to use changed");
+      changes.howtouse = postProduct.howtouse;
+    }
+    if (postProduct.ingredients !== originalProduct.ingredients) {
+      console.log("🚀 ~ getChangedFields ~ Ingredients changed");
+      changes.ingredients = postProduct.ingredients;
+    }
+    if (postProduct.benefits !== originalProduct.benefits) {
+      console.log("🚀 ~ getChangedFields ~ Benefits changed");
+      changes.benefits = postProduct.benefits;
+    }
+    if (postProduct.totalStock !== originalProduct.totalStock) {
+      console.log("🚀 ~ getChangedFields ~ Stock changed:", originalProduct.totalStock, "->", postProduct.totalStock);
+      changes.totalStock = postProduct.totalStock;
+    }
+    if (postProduct.categoryId !== originalProduct.categoryId) {
+      console.log("🚀 ~ getChangedFields ~ Category changed:", originalProduct.categoryId, "->", postProduct.categoryId);
+      changes.categoryId = postProduct.categoryId;
+    }
+
+    // Check if images have changed
+    const originalImages = originalProduct.images || [];
+    const currentImages = imgUrls || [];
+    console.log("🚀 ~ getChangedFields ~ Original images:", originalImages);
+    console.log("🚀 ~ getChangedFields ~ Current images:", currentImages);
+
+    if (JSON.stringify(originalImages.sort()) !== JSON.stringify(currentImages.sort())) {
+      console.log("🚀 ~ getChangedFields ~ Images changed");
+      changes.images = imgUrls;
+    }
+
+    console.log("🚀 ~ getChangedFields ~ Final changes:", changes);
+    return changes;
+  };
+
   const handleEdit = (product: Product) => {
+    console.log("🚀 ~ handleEdit ~ product:", product);
+    console.log("🚀 ~ handleEdit ~ product.productId:", product.productId);
+
     setIsEditing(true);
-    setEditingProductId(product.productid);
-    setPostProduct({
-      name: product.productname,
-      description: product.description,
-      price: product.price,
-      images: product.images,
-      howtouse: product.howtouse,
-      ingredients: product.ingredients,
-      benefits: product.benefits,
-      totalStock: product.totalStock
-    });
-    setImageUrls(product.images);
+    setEditingProductId(product.productId);
+
+    // Store original product data for comparisons
+    const originalProductData = {
+      productName: product.productName || "",
+      description: product.description || "",
+      price: product.price || 0,
+      images: product.images || [],
+      howtouse: product.howtouse || "",
+      ingredients: product.ingredients || "",
+      benefits: product.benefits || "",
+      totalStock: product.totalStock || 0,
+      categoryId: product.categoryId || ""
+    };
+
+    console.log("🚀 ~ handleEdit ~ originalProductData:", originalProductData);
+
+    setOriginalProduct(originalProductData);
+    setPostProduct(originalProductData);
+    setImageUrls(product.images || []);
     setIsSheetOpen(true);
   };
 
@@ -350,19 +583,75 @@ function page() {
 
   const handleSheetClose = () => {
     setIsSheetOpen(false);
-    setIsEditing(false);
-    setEditingProductId(null);
-    setPostProduct({
-      name: "",
-      description: "",
-      price: 0,
-      images: [""],
-      howtouse: "",
-      ingredients: "",
-      benefits: "",
-      totalStock: 0
-    });
-    setImageUrls([]);
+    resetForm();
+  };
+
+  const deleteProduct = async (productId: string) => {
+    try {
+      console.log("🚀 ~ deleteProduct ~ productId:", productId);
+
+      const token = localStorage.getItem("token");
+      console.log("🚀 ~ deleteProduct ~ token exists:", !!token);
+
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/product/delete/${productId}`;
+      console.log("🚀 ~ deleteProduct ~ API URL:", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log("🚀 ~ deleteProduct ~ Response received:", response);
+      console.log("🚀 ~ deleteProduct ~ Response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("🚀 ~ deleteProduct ~ Response data:", data);
+
+      if (data.status) {
+        toast({
+          title: "Product deleted",
+          description: data.message || "Product deleted successfully",
+        });
+        // Refresh the products list
+        await getAllProduct();
+      } else {
+        toast({
+          title: "Failed to delete product",
+          description: data.message || "Unknown error occurred",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("🚀 ~ deleteProduct ~ Error caught:", error);
+      toast({
+        title: "Error",
+        description: `An error occurred while deleting the product: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteProduct = (product: Product) => {
+    // Show confirmation dialog before deleting
+    if (window.confirm(`Are you sure you want to delete "${product.productName}"? This action cannot be undone.`)) {
+      deleteProduct(product.productId);
+    }
+  };
+
+  const handleAddProduct = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    resetForm();
+    setIsSheetOpen(true);
   };
 
   return (
@@ -394,166 +683,221 @@ function page() {
                     Add Category
                   </span>
                 </Button> */}
-                <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
-                <SheetTrigger asChild >
-                <Button size="sm" className="h-8 gap-1"  onClick={() => setIsSheetOpen(true)}>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1"
+                  onClick={handleAddProduct}
+                  type="button"
+                >
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    {isEditing ? "Edit Product" : "Add Product"}
+                    Add Product
                   </span>
                 </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
+
+                <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
+                <SheetContent className="w-full sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl overflow-y-auto max-h-screen">
+                  <SheetHeader className="sticky top-0 bg-background z-10 pb-4">
                     <SheetTitle>{isEditing ? "Edit Product" : "Create Product"}</SheetTitle>
                     <SheetDescription>
                       {isEditing ? "Update your product details here." : "Add a new product to your store."}
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="grid gap-4 py-4 ">
+                  <div className="grid gap-4 py-4 pb-20">
                     {/* <div className="grid grid-cols-4 items-center gap-4 justify-start" > 
                     </div> */}
-                    <div className="">
-                      <p className="text-left font-bold text-sm ">
-                        categories
+                    <div className="space-y-2">
+                      <p className="text-left font-bold text-sm">
+                        Category *
+                        {isEditing && originalProduct && postProduct.categoryId !== originalProduct.categoryId && (
+                          <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Modified</span>
+                        )}
                       </p>
-
-                        <SelectCategories onChange={(e) => {
+                        <SelectCategories
+                          value={postProduct.categoryId}
+                          onChange={(e) => {
                             setPostProduct(prev => ({
                               ...prev,
-                              categoryId:e,
+                              categoryId: e,
                             }));
-                        }  } />
+                            console.log("Selected category ID:", e);
+                        }} />
+                    </div>
 
-                    </div>
-                    <div >
-                      <p  className="text-left font-bold text-sm ">
-                        name
+                    <div className="space-y-2">
+                      <p className="text-left font-bold text-sm">
+                        Product Name *
+                        {isEditing && originalProduct && postProduct.productName !== originalProduct.productName && (
+                          <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Modified</span>
+                        )}
                       </p>
-                      <Input name="name" placeholder="product name" id="name" className="col-span-1"  onChange={handleValueChange}/>
+                      <Input
+                        name="productName"
+                        placeholder="Enter product name"
+                        id="productName"
+                        className="w-full"
+                        value={postProduct.productName}
+                        onChange={handleValueChange}
+                      />
                     </div>
-                    <div className="flex gap-x-2" >
-                      <div className="">
-                      <p  className="text-left font-bold text-sm ">
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-2" >
+                      <div className="flex-1">
+                      <p  className="text-left font-bold text-sm mb-2">
                         In stock
                       </p>
-                      <Input onChange={handleValueChange}  name="totalStock" placeholder="how many are in stock ?" id="name" className="col-span-1" />
+                      <Input
+                        onChange={handleValueChange}
+                        name="totalStock"
+                        placeholder="Stock quantity"
+                        id="totalStock"
+                        className="w-full"
+                        value={postProduct.totalStock}
+                        type="number"
+                      />
 
                       </div>
-                      <div >
-                      <p  className="text-left font-bold text-sm ">
+                      <div className="flex-1">
+                      <p  className="text-left font-bold text-sm mb-2">
                         Price
                       </p>
-                      <Input onChange={handleValueChange} name="price"  type="number" placeholder="how much ?" id="name" className="col-span-1" />
+                      <Input
+                        onChange={handleValueChange}
+                        name="price"
+                        type="number"
+                        placeholder="Price"
+                        id="price"
+                        className="w-full"
+                        value={postProduct.price}
+                      />
                     </div>
                     </div>
-                    <div className="">
-                      <p  className="text-left font-bold text-sm ">
-                          product descpritions
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-left font-bold text-sm">
+                          Product Description *
                         </p>
                         <Textarea
                           onChange={(e) => {
                             const { value } = e.target;
-                            console.log(value)
                             setPostProduct(prev => ({
                               ...prev,
                               description: value,
                             }));
                           }}
                           name="description"
-                          placeholder="Type product descriptions here."
+                          placeholder="Describe your product..."
+                          value={postProduct.description}
+                          className="min-h-[80px] resize-none"
                         />
-                      <p  className="text-left font-bold text-sm ">
-                         how to use
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-left font-bold text-sm">
+                          How to Use
                         </p>
                         <Textarea
                           onChange={(e) => {
                             const { value } = e.target;
-                            console.log(value)
                             setPostProduct(prev => ({
                               ...prev,
                               howtouse: value,
                             }));
                           }}
-                          name="description"
-                          placeholder="Type how to use product here."
+                          name="howtouse"
+                          placeholder="Instructions for use..."
+                          value={postProduct.howtouse}
+                          className="min-h-[60px] resize-none"
                         />
-                      <p  className="text-left font-bold text-sm ">
-                         Ingredients
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-left font-bold text-sm">
+                          Ingredients
                         </p>
                         <Textarea
                           onChange={(e) => {
                             const { value } = e.target;
-                            console.log(value)
                             setPostProduct(prev => ({
                               ...prev,
                               ingredients: value,
                             }));
                           }}
-                          name="description"
-                          placeholder="Type product ingredients here."
+                          name="ingredients"
+                          placeholder="List ingredients..."
+                          value={postProduct.ingredients}
+                          className="min-h-[60px] resize-none"
                         />
-                      <p  className="text-left font-bold text-sm ">
-                      benefits
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-left font-bold text-sm">
+                          Benefits
                         </p>
                         <Textarea
                           onChange={(e) => {
                             const { value } = e.target;
-                            console.log(value)
                             setPostProduct(prev => ({
                               ...prev,
                               benefits: value,
                             }));
                           }}
-                          name="description"
-                          placeholder="Type product benefits here."
+                          name="benefits"
+                          placeholder="Product benefits..."
+                          value={postProduct.benefits}
+                          className="min-h-[60px] resize-none"
                         />
-
+                      </div>
                     </div>
 
                     
                     
-                    <div>
-                    <div>
-                      <p className="text-left font-bold text-sm ">
-                        Upload Pictures
+                    <div className="space-y-2">
+                      <p className="text-left font-bold text-sm">
+                        Product Images *
                       </p>
-
-                      <Upload
-        multiple
-        imagePreview
-        defaultFileList={[
-        ]}
-        action='/'
-        onChange={(fileList) => console.log(fileList)}
-        onProgress={handleImageChange}
-        listType='picture-card'
-        onPreview={(file) => {
-          Message.info('click preview icon')
-        }}
-      />
-
-                       <div>
-                        <br/>
-   
-    </div>
-                    </div>
-                    
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                        <Upload
+                          multiple
+                          imagePreview
+                          defaultFileList={imgUrls.map((url, index) => ({
+                            uid: `existing-${index}`,
+                            name: `image-${index}`,
+                            status: 'done',
+                            url: url,
+                            response: { url: url }
+                          }))}
+                          action='/'
+                          onChange={(fileList) => console.log(fileList)}
+                          onProgress={handleImageChange}
+                          listType='picture-card'
+                          onPreview={(_file) => {
+                            Message.info('Click to preview image')
+                          }}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
                   
                     
   
                   </div>
-                  <SheetFooter>
-                    <SheetClose asChild>
-                      <Button className="w-full" onClick={handleSubmit} type="submit">
+                  <SheetFooter className="sticky bottom-0 bg-background border-t pt-4 mt-4">
+                      <Button
+                        className="w-full"
+                        onClick={handleSubmit}
+                        type="submit"
+                        disabled={loading}
+                      >
                       {loading ? (
-                <svg className="bg-white animate-spin h-5 w-5 mr-3 ..." viewBox="0 0 24 24">
-              
-              </svg>
-              ) : isEditing ? "Update" : "Submit"}
+                        <div className="flex items-center">
+                          <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          {isEditing ? "Updating..." : "Creating..."}
+                        </div>
+                      ) : isEditing ? "Update Product" : "Create Product"}
                       </Button>
-                    </SheetClose>
                   </SheetFooter>
                 </SheetContent>
               </Sheet>
@@ -605,15 +949,17 @@ function page() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        prodcuts.map(product => {
+                        prodcuts.map((product, index) => {
+                          console.log(`🚀 ~ Table render ~ Product ${index}:`, product);
+                          console.log(`🚀 ~ Table render ~ Product ${index} name:`, product.productName);
                           return (
-                            <TableRow>
+                            <TableRow key={product.productId || index}>
                               <TableCell className="hidden sm:table-cell">
                                 <Image
                                   alt="Product image"
                                   className="aspect-square  rounded-xl object-cover"
                                   height="64"
-                                  src={product.images[0]}
+                                  src={product.images?.[0] || '/placeholder-image.jpg'}
                                   width="64"
                                 />
                                  {/* <AvatarGroup
@@ -637,12 +983,12 @@ function page() {
                                       })
                                     }
                                     </div>
-                                
-                                  
+
+
                                 </AvatarGroup> */}
                               </TableCell>
                               <TableCell className="font-medium">
-                                {product.productname}
+                                {product.productName || 'No name available'}
                               </TableCell>
                               <TableCell>
                               <Badge className="text-primary-foreground" variant={product.status ? "secondary" : "destructive"}>
@@ -675,7 +1021,12 @@ function page() {
                                     <DropdownMenuItem onClick={() => handleEdit(product)}>
                                       Edit Product
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>Delete</DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteProduct(product)}
+                                      className="text-red-600 focus:text-red-600"
+                                    >
+                                      Delete Product
+                                    </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>

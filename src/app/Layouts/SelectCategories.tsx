@@ -19,9 +19,11 @@ interface Category {
 
 interface SelectCategoriesProps {
   onChange: (value: string) => void;
+  value?: string;
+  current?: string;
 }
 
-const SelectCategories: React.FC<SelectCategoriesProps> = ({ onChange }) => {
+const SelectCategories: React.FC<SelectCategoriesProps> = ({ onChange, value, current }) => {
   const [categories, setCategories] = useState<Category[]>([]);
 
   const getAllCategories = async () => {
@@ -46,7 +48,7 @@ const SelectCategories: React.FC<SelectCategoriesProps> = ({ onChange }) => {
   }, []);
 
   return (
-    <Select name='categoryid' onValueChange={onChange}>
+    <Select name='categoryid' onValueChange={onChange} value={value || current}>
       <SelectTrigger className="">
         <SelectValue placeholder="Select a category" />
       </SelectTrigger>

@@ -174,7 +174,7 @@ const Dashboard = () => {
     if (value === null || value === undefined) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'NGN'
     }).format(value);
   };
 
