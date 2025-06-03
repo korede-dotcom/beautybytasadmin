@@ -440,9 +440,9 @@ function Edit ({ params }: { params: { id: string } }) {
 
                      <>
                       {
-                      pdetails && pdetails?.images.map((img) => {
+                      pdetails && pdetails?.images.map((img, index) => {
                         return (
-                      <div className="grid grid-cols-3 gap-2">
+                      <div key={index} className="grid grid-cols-3 gap-2">
                         <button>
                           <Image
                             alt="Product image"
@@ -452,15 +452,15 @@ function Edit ({ params }: { params: { id: string } }) {
                             width="84"
                           />
                         </button>
-                       
+
                       </div>
 
                         )
 
                         })
-                        
+
                       }
-                      </> 
+                      </>
                         <button className="flex aspect-square w-full items-center justify-center rounded-md border border-dashed">
                           <Upload className="h-4 w-4 text-muted-foreground" />
                           <span className="sr-only">Upload</span>

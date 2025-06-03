@@ -87,7 +87,7 @@ interface Product {
 
 
 
-function page() {
+function Page() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [prodcuts, setProducts] = useState<Product[]>([]);
   const [isUploading, setUploading] = useState(false);
@@ -1056,5 +1056,5 @@ function page() {
   )
 }
 
-// export default withAuth(page)
-export default page
+// export default withAuth(Page)
+export default Page
