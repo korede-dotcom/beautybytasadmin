@@ -24,6 +24,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetTrigger,
@@ -70,6 +72,15 @@ const Page: React.FC = () => {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalItems, setTotalItems] = useState<number>(0);
 
+  // Edit category state
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editFormData, setEditFormData] = useState<{ name: string; status?: boolean }>({
+    name: '',
+    status: true
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
 
   const getAllCategories = async () => {
     try {
@@ -82,6 +93,9 @@ const Page: React.FC = () => {
         },
       });
       const data = await response.json();
+      console.log("🚀 ~ getAllCategories ~ API response:", data);
+      console.log("🚀 ~ getAllCategories ~ categories sample:", data.categories?.[0]);
+
       setCategories(data.categories);
       setTotalPages(data.pagination.totalPages);
       setTotalItems(data.pagination.totalItems);
@@ -120,8 +134,6 @@ const Page: React.FC = () => {
       });
       return;
     }
-
-
 
     setLoading(true);
     try {
@@ -163,6 +175,140 @@ const Page: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditCategory = (category: Category) => {
+    console.log("🚀 ~ handleEditCategory ~ category:", category);
+    console.log("🚀 ~ handleEditCategory ~ category keys:", Object.keys(category));
+
+    // Check for different possible ID field names
+    const categoryId = category.categoryId || category.categoryid || category.id || category._id;
+    console.log("🚀 ~ handleEditCategory ~ categoryId found:", categoryId);
+
+    if (!categoryId) {
+      toast({
+        title: "Error",
+        description: "Category ID not found. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditingCategory(category);
+    setEditFormData({
+      name: category.categoryname || category.categoryName || category.name || '',
+      status: category.status !== undefined ? category.status : true
+    });
+    setIsEditSheetOpen(true);
+  };
+
+  const handleEditFormChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setEditFormData({
+      ...editFormData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleStatusChange = (checked: boolean) => {
+    setEditFormData({
+      ...editFormData,
+      status: checked
+    });
+  };
+
+  const handleUpdateCategory = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!editFormData.name.trim()) {
+      toast({
+        title: "Oops",
+        description: "Please input a category name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for different possible ID field names
+    const categoryId = editingCategory?.categoryId || editingCategory?.categoryid || editingCategory?.id || editingCategory?._id;
+
+    if (!categoryId) {
+      console.log("🚀 ~ handleUpdateCategory ~ editingCategory:", editingCategory);
+      console.log("🚀 ~ handleUpdateCategory ~ available keys:", editingCategory ? Object.keys(editingCategory) : 'no category');
+      toast({
+        title: "Error",
+        description: "Category ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+
+      // Prepare the request body - status is optional
+      const requestBody: { name: string; status?: boolean } = {
+        name: editFormData.name
+      };
+
+      // Only include status if it's defined
+      if (editFormData.status !== undefined) {
+        requestBody.status = editFormData.status;
+      }
+
+      console.log("🚀 ~ handleUpdateCategory ~ requestBody:", requestBody);
+      console.log("🚀 ~ handleUpdateCategory ~ categoryId:", categoryId);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/${categoryId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log("🚀 ~ handleUpdateCategory ~ response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const details = await response.json();
+      console.log("🚀 ~ handleUpdateCategory ~ response data:", details);
+
+      if (details.status) {
+        toast({
+          title: "Success",
+          description: details.message || "Category updated successfully",
+        });
+        await getAllCategories();
+        setIsEditSheetOpen(false);
+        setEditingCategory(null);
+        setEditFormData({ name: '', status: true });
+      } else {
+        toast({
+          title: "Failed",
+          description: details.message || "Failed to update category",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Update category error:", err);
+      toast({
+        title: "Failed",
+        description: `An error occurred while updating the category: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleCloseEditSheet = () => {
+    setIsEditSheetOpen(false);
+    setEditingCategory(null);
+    setEditFormData({ name: '', status: true });
   };
 
   return (
@@ -321,8 +467,8 @@ const Page: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>
-                                <Link href={`/categories/${cat?.categoryId}`}>Edit Category</Link>
+                              <DropdownMenuItem onClick={() => handleEditCategory(cat)}>
+                                Edit Category
                               </DropdownMenuItem>
                               <DropdownMenuItem>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -345,6 +491,91 @@ const Page: React.FC = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Edit Category Sheet */}
+        <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+          <SheetContent className="w-[400px] sm:w-[540px]">
+            <SheetHeader>
+              <SheetTitle>Edit Category</SheetTitle>
+              <SheetDescription>
+                Update the category information. Status is optional.
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="grid gap-6 py-6">
+              {/* Category Name */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name" className="text-sm font-medium">
+                  Category Name *
+                </Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  placeholder="Enter category name"
+                  value={editFormData.name}
+                  onChange={handleEditFormChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Category Status */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-status" className="text-sm font-medium">
+                  Status (Optional)
+                </Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="edit-status"
+                    checked={editFormData.status}
+                    onCheckedChange={handleStatusChange}
+                  />
+                  <Label htmlFor="edit-status" className="text-sm text-muted-foreground">
+                    {editFormData.status ? 'Active' : 'Inactive'}
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Toggle to set the category as active or inactive
+                </p>
+              </div>
+
+              {/* Current Category Info */}
+              {editingCategory && (
+                <div className="grid gap-2 p-4 bg-muted rounded-lg">
+                  <h4 className="text-sm font-medium">Current Information</h4>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p><strong>ID:</strong> {editingCategory.categoryId || editingCategory.categoryid || editingCategory.id || editingCategory._id || 'Not found'}</p>
+                    <p><strong>Current Name:</strong> {editingCategory.categoryname || editingCategory.categoryName || editingCategory.name || 'Not found'}</p>
+                    <p><strong>Current Status:</strong> {editingCategory.status ? 'Active' : 'Inactive'}</p>
+                    <p><strong>Product Count:</strong> {editingCategory.productcount || editingCategory.productCount || 0}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <SheetFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCloseEditSheet}
+                disabled={editLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateCategory}
+                disabled={editLoading || !editFormData.name.trim()}
+              >
+                {editLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Updating...
+                  </div>
+                ) : (
+                  "Update Category"
+                )}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </main>
     </Layout>
   );
