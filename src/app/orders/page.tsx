@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
 import Layout from "../Layouts/Layout"
 import SelectCategories from "../Layouts/SelectCategories"
 import { Textarea } from "@/components/ui/textarea"
@@ -142,6 +145,8 @@ const Page: React.FC = () => {
   const [totalItems, setTotalItems] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
   const [usingMockData, setUsingMockData] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   useEffect(() => {
     getAllOrders()
@@ -240,6 +245,17 @@ const Page: React.FC = () => {
       style: "currency",
       currency: "NGN",
     }).format(amount / 100)
+  }
+
+  const handleViewDetails = (order: Order) => {
+    console.log("🚀 ~ handleViewDetails ~ order:", order)
+    setSelectedOrder(order)
+    setIsSheetOpen(true)
+  }
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false)
+    setSelectedOrder(null)
   }
 
   return (
@@ -387,7 +403,9 @@ const Page: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewDetails(order)}>
+                                View Details
+                              </DropdownMenuItem>
                               <DropdownMenuItem>Update Status</DropdownMenuItem>
                               <DropdownMenuItem>Send Receipt</DropdownMenuItem>
                             </DropdownMenuContent>
@@ -428,6 +446,170 @@ const Page: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Order Details Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Order Details</SheetTitle>
+            <SheetDescription>
+              Complete information for order {selectedOrder?.reference}
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedOrder && (
+            <div className="mt-6 space-y-6">
+              {/* Order Summary */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Order Summary</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Reference</Label>
+                    <p className="text-sm font-mono">{selectedOrder.reference}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                    <div className="mt-1">
+                      <Badge
+                        variant={
+                          selectedOrder.status === "success"
+                            ? "default"
+                            : selectedOrder.status === "processing"
+                              ? "secondary"
+                              : selectedOrder.status === "pending"
+                                ? "outline"
+                                : "destructive"
+                        }
+                      >
+                        {selectedOrder.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Date</Label>
+                    <p className="text-sm">{formatDate(selectedOrder.createdAt)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
+                    <p className="text-sm font-semibold">{formatCurrency(selectedOrder.amount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Customer Information */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Customer Information</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Name</Label>
+                    <p className="text-sm">{selectedOrder.customerName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                    <p className="text-sm">{selectedOrder.userEmail}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Customer ID</Label>
+                    <p className="text-sm font-mono">{selectedOrder.userId}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Product Information */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Product Information</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Product Name</Label>
+                    <p className="text-sm">{selectedOrder.productName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Product ID</Label>
+                    <p className="text-sm font-mono">{selectedOrder.productId}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
+                      <p className="text-sm">{selectedOrder.quantity}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
+                      <p className="text-sm">{formatCurrency(selectedOrder.amount / selectedOrder.quantity)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Delivery Information */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Delivery Information</h3>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Delivery Status</Label>
+                    <p className="text-sm">
+                      {selectedOrder.deliveryStatus ? (
+                        <Badge variant="outline">{selectedOrder.deliveryStatus}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Not set</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Address</Label>
+                    <p className="text-sm">
+                      {selectedOrder.address || <span className="text-muted-foreground">Not provided</span>}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">City</Label>
+                      <p className="text-sm">
+                        {selectedOrder.city || <span className="text-muted-foreground">Not provided</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">State</Label>
+                      <p className="text-sm">
+                        {selectedOrder.state || <span className="text-muted-foreground">Not provided</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Country</Label>
+                    <p className="text-sm">
+                      {selectedOrder.country || <span className="text-muted-foreground">Not provided</span>}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Actions */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Actions</h3>
+                <div className="flex flex-col gap-2">
+                  <Button variant="outline" size="sm">
+                    Update Status
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    Send Receipt
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    Contact Customer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </main>
     </Layout>
   );
