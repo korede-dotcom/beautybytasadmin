@@ -137,6 +137,15 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+
+      if (!token) {
+        console.error("No token found, redirecting to login");
+        window.location.href = "/";
+        return;
+      }
+
+      console.log("🚀 ~ fetchDashboardData ~ Fetching dashboard data...");
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/dashboard`, {
         method: 'GET',
         headers: {
@@ -144,13 +153,98 @@ const Dashboard = () => {
           'Authorization': `Bearer ${token}`,
         },
       });
+
+      console.log("🚀 ~ fetchDashboardData ~ Response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log("🚀 ~ fetchDashboardData ~ Response data:", data);
+
       if (data.status && data.data) {
-        setDashboardData(data.data);
-        setTotalPages(data.data.totalPages);
+        // Ensure arrays exist with fallbacks
+        const dashboardDataWithDefaults = {
+          ...data.data,
+          topProducts: data.data.topProducts || [],
+          lowStockProducts: data.data.lowStockProducts || [],
+          categorySales: data.data.categorySales || [],
+          productMetrics: data.data.productMetrics || {
+            totalProducts: 0,
+            totalStock: 0,
+            lowStockCount: 0,
+            activeProducts: 0,
+            averagePrice: 0
+          },
+          categoryMetrics: data.data.categoryMetrics || {
+            totalCategories: 0,
+            activeCategories: 0
+          },
+          salesMetrics: data.data.salesMetrics || {
+            totalOrders: 0,
+            totalItemsSold: 0,
+            totalRevenue: 0,
+            uniqueCustomers: 0,
+            averageOrderValue: 0
+          }
+        };
+
+        setDashboardData(dashboardDataWithDefaults);
+        setTotalPages(data.data.totalPages || 1);
+      } else {
+        console.error("🚀 ~ fetchDashboardData ~ Invalid response format:", data);
+        // Set fallback data
+        setDashboardData({
+          topProducts: [],
+          lowStockProducts: [],
+          categorySales: [],
+          productMetrics: {
+            totalProducts: 0,
+            totalStock: 0,
+            lowStockCount: 0,
+            activeProducts: 0,
+            averagePrice: 0
+          },
+          categoryMetrics: {
+            totalCategories: 0,
+            activeCategories: 0
+          },
+          salesMetrics: {
+            totalOrders: 0,
+            totalItemsSold: 0,
+            totalRevenue: 0,
+            uniqueCustomers: 0,
+            averageOrderValue: 0
+          }
+        });
       }
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error("🚀 ~ fetchDashboardData ~ Error:", error);
+      // Set fallback data on error
+      setDashboardData({
+        topProducts: [],
+        lowStockProducts: [],
+        categorySales: [],
+        productMetrics: {
+          totalProducts: 0,
+          totalStock: 0,
+          lowStockCount: 0,
+          activeProducts: 0,
+          averagePrice: 0
+        },
+        categoryMetrics: {
+          totalCategories: 0,
+          activeCategories: 0
+        },
+        salesMetrics: {
+          totalOrders: 0,
+          totalItemsSold: 0,
+          totalRevenue: 0,
+          uniqueCustomers: 0,
+          averageOrderValue: 0
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -293,15 +387,23 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dashboardData?.topProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{formatCurrency(product.price)}</TableCell>
-                      <TableCell>{formatNumber(product.stock)}</TableCell>
-                      <TableCell>{formatNumber(product.totalSold)}</TableCell>
-                      <TableCell>{formatCurrency(product.totalRevenue)}</TableCell>
+                  {dashboardData?.topProducts && dashboardData.topProducts.length > 0 ? (
+                    dashboardData.topProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{formatCurrency(product.price)}</TableCell>
+                        <TableCell>{formatNumber(product.stock)}</TableCell>
+                        <TableCell>{formatNumber(product.totalSold)}</TableCell>
+                        <TableCell>{formatCurrency(product.totalRevenue)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No products data available
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -323,20 +425,28 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dashboardData?.lowStockProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.categoryName}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={product.stock <= 5 ? "destructive" : "default"}
-                          className="ml-2"
-                        >
-                          {product.stock} in stock
-                        </Badge>
+                  {dashboardData?.lowStockProducts && dashboardData.lowStockProducts.length > 0 ? (
+                    dashboardData.lowStockProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.categoryName}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={product.stock <= 5 ? "destructive" : "default"}
+                            className="ml-2"
+                          >
+                            {product.stock} in stock
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                        No low stock products
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -360,14 +470,22 @@ const Dashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dashboardData?.categorySales.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>{formatNumber(category.orderCount)}</TableCell>
-                    <TableCell>{formatNumber(category.itemsSold)}</TableCell>
-                    <TableCell>{formatCurrency(category.revenue)}</TableCell>
+                {dashboardData?.categorySales && dashboardData.categorySales.length > 0 ? (
+                  dashboardData.categorySales.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell className="font-medium">{category.name}</TableCell>
+                      <TableCell>{formatNumber(category.orderCount)}</TableCell>
+                      <TableCell>{formatNumber(category.itemsSold)}</TableCell>
+                      <TableCell>{formatCurrency(category.revenue)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No category sales data available
+                    </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>

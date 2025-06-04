@@ -9,6 +9,7 @@ import { BorderBeam } from "@/components/magicui/border-beam";
 import SparklesText from "@/components/magicui/sparkles-text";
 import { useState, ChangeEvent, FormEvent } from "react";
 import { toast } from "@/components/ui/use-toast";
+import ModeToggle from "./Layouts/ModeToggle";
 
 export default function Dashboard() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -71,7 +72,12 @@ export default function Dashboard() {
   console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
 
   return (
-    <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
+    <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px] relative">
+      {/* Dark Mode Toggle - Top Right Corner */}
+      <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
+        <ModeToggle />
+      </div>
+
       <div className="flex items-center justify-center py-12">
         <form className="mx-auto grid w-[350px] gap-9" onSubmit={handleLogin}>
           <div className="grid gap-2 text-center">

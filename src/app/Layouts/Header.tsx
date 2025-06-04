@@ -1,6 +1,6 @@
 "use client"
 import * as React from "react"
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Image from "next/image"
 import Link from "next/link"
 
@@ -37,11 +37,37 @@ import { NotebookPen } from 'lucide-react';
 
 function Header() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const linkClasses = (path: string) => {
     return `flex items-center gap-4 px-2.5 transition-colors ${
       pathname === path ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
     }`;
+  };
+
+  const handleLogout = () => {
+    try {
+      // Clear all localStorage items
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userId");
+
+      // Clear all localStorage (optional - removes everything)
+      // localStorage.clear();
+
+      console.log("🚀 ~ handleLogout ~ Logout successful, redirecting to login");
+
+      // Redirect to login page
+      router.push("/");
+
+      // Optional: Force page reload to ensure clean state
+      window.location.href = "/";
+    } catch (error) {
+      console.error("🚀 ~ handleLogout ~ Error during logout:", error);
+      // Fallback redirect
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -148,7 +174,9 @@ function Header() {
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Logout</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+            Logout
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <ModeToggle/>
