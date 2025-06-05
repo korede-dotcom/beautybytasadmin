@@ -3,7 +3,7 @@ import React from 'react'
 import { usePathname } from 'next/navigation'
 import Image from "next/image"
 import Link from "next/link"
-import { Home, LineChart, NotebookPen, Package, Package2, Settings, Users2 } from "lucide-react"
+import { Home, LineChart, NotebookPen, Package, Package2, Settings, Users2, Mail } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
 import { RectangleEllipsis , ShoppingCart} from 'lucide-react';
@@ -117,6 +117,20 @@ function Navbar() {
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right">Blogs</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/newsletter"
+                className={linkClasses('/newsletter')}
+              >
+                <Mail className="h-5 w-5" />
+                <span className="sr-only">Newsletter</span>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">Newsletter</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </nav>

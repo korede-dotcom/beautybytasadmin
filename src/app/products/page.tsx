@@ -46,6 +46,7 @@ import { useState,useEffect } from "react"
 import { Message, Upload } from '@arco-design/web-react';
 import { toast } from "@/components/ui/use-toast"
 import { Pagination } from "@/components/ui/pagination";
+import imageCompression from 'browser-image-compression';
 
 interface Category {
   [x: string]: any;
@@ -93,6 +94,7 @@ function Page() {
   const [isUploading, setUploading] = useState(false);
   const [imgUrls, setImageUrls] = useState<string[]>([]);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<{[key: string]: number}>({});
   const [postProduct, setPostProduct] = useState(
     {
       productName:"",
@@ -197,18 +199,104 @@ function Page() {
   }, []);
 
 
+  // Image compression options
+  const compressionOptions = {
+    maxSizeMB: 1, // Maximum file size in MB (1MB for faster uploads)
+    maxWidthOrHeight: 1920, // Maximum width or height (good for product images)
+    useWebWorker: true, // Use web worker for better performance
+    quality: 0.8, // Image quality (0.8 provides good balance)
+    initialQuality: 0.8, // Initial quality
+    alwaysKeepResolution: false, // Allow resolution reduction for better compression
+    fileType: 'image/jpeg' // Convert to JPEG for better compression
+  };
+
+  // Validate image file
+  const validateImageFile = (file: File): { isValid: boolean; error?: string } => {
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        isValid: false,
+        error: 'Please upload only JPEG, PNG, or WebP images.'
+      };
+    }
+
+    // Check file size (max 10MB before compression)
+    const maxSizeBeforeCompression = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSizeBeforeCompression) {
+      return {
+        isValid: false,
+        error: 'Image size must be less than 10MB.'
+      };
+    }
+
+    // Check image dimensions (optional - can be done after loading)
+    return { isValid: true };
+  };
+
+  const compressImage = async (file: File): Promise<File> => {
+    try {
+      console.log("🚀 ~ compressImage ~ Original file size:", (file.size / 1024 / 1024).toFixed(2), "MB");
+
+      const compressedFile = await imageCompression(file, compressionOptions);
+
+      console.log("🚀 ~ compressImage ~ Compressed file size:", (compressedFile.size / 1024 / 1024).toFixed(2), "MB");
+      console.log("🚀 ~ compressImage ~ Compression ratio:", ((1 - compressedFile.size / file.size) * 100).toFixed(1), "% reduction");
+
+      return compressedFile;
+    } catch (error) {
+      console.error("🚀 ~ compressImage ~ Error compressing image:", error);
+      toast({
+        title: "Compression failed",
+        description: "Failed to compress image. Using original file.",
+        variant: "destructive"
+      });
+      return file; // Return original file if compression fails
+    }
+  };
+
   const handleImageChange = async (e: any) => {
     if (isUploading) return; // Prevent multiple uploads
     setUploading(true);
 
     const token = localStorage.getItem("token");
-    const form = new FormData();
     console.log("🚀 ~ handleImageChange ~ e:", e);
 
     if (e && e['originFile']) {
-      form.append("image", e['originFile']);
-
       try {
+        const originalFile = e['originFile'];
+
+        // Validate the image file first
+        const validation = validateImageFile(originalFile);
+        if (!validation.isValid) {
+          toast({
+            title: "Invalid image",
+            description: validation.error,
+            variant: "destructive"
+          });
+          setUploading(false);
+          return;
+        }
+
+        // Show compression progress
+        toast({
+          title: "Processing image",
+          description: "Optimizing image for upload...",
+        });
+
+        // Compress the image before uploading
+        const compressedFile = await compressImage(originalFile);
+
+        // Create form data with compressed image
+        const form = new FormData();
+        form.append("image", compressedFile);
+
+        // Show upload progress
+        toast({
+          title: "Uploading image",
+          description: "Uploading optimized image to cloud storage...",
+        });
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/product/image`, {
           method: 'POST',
           headers: {
@@ -223,7 +311,7 @@ function Page() {
 
         const data = await response.json();
 
-        // Fix: Store image URLs as strings, not objects
+        // Store image URLs as strings
         setImageUrls((prev) => {
           const updatedUrls = [...prev, data.results.url];
           console.log("🚀 ~ handleImageChange ~ updatedUrls:", updatedUrls);
@@ -231,6 +319,13 @@ function Page() {
         });
 
         console.log("🚀 ~ handleImageChange ~ data:", data);
+
+        // Show success message
+        toast({
+          title: "Upload successful",
+          description: `Image optimized and uploaded successfully! Size reduced by ${((1 - compressedFile.size / originalFile.size) * 100).toFixed(1)}%`,
+        });
+
       } catch (error) {
         console.error("Error during file upload:", error);
         toast({
@@ -244,6 +339,15 @@ function Page() {
     } else {
       setUploading(false); // Reset the flag if there's no valid file
     }
+  };
+
+  // Remove image from the list
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImageUrls(prev => prev.filter((_, index) => index !== indexToRemove));
+    toast({
+      title: "Image removed",
+      description: "Image has been removed from the product.",
+    });
   };
 
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -854,6 +958,9 @@ function Page() {
                     <div className="space-y-2">
                       <p className="text-left font-bold text-sm">
                         Product Images *
+                        {isEditing && originalProduct && JSON.stringify(originalProduct.images?.sort()) !== JSON.stringify(imgUrls?.sort()) && (
+                          <span className="ml-2 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">Modified</span>
+                        )}
                       </p>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                         <Upload
@@ -874,7 +981,21 @@ function Page() {
                             Message.info('Click to preview image')
                           }}
                           className="w-full"
+                          disabled={isUploading}
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
                         />
+                        {isUploading && (
+                          <div className="mt-2 text-sm text-blue-600 flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                            Optimizing and uploading image...
+                          </div>
+                        )}
+                        <div className="mt-2 text-xs text-gray-500">
+                          <p>• Supported formats: JPEG, PNG, WebP</p>
+                          <p>• Maximum size: 10MB (will be optimized to ~1MB)</p>
+                          <p>• Images will be automatically compressed for faster loading</p>
+                          <p>• Recommended resolution: 1920x1920 or smaller</p>
+                        </div>
                       </div>
                     </div>
                   
